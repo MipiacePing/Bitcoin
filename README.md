@@ -69,4 +69,4 @@ from hashlib import sha256
 
 
 
-![run](D:\junior_term2\创新实践\Bitcoin\picture\run.png)
+![run](./picture/run.png)
