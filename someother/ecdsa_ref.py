@@ -1,12 +1,11 @@
 import math
 import secrets
 from hashlib import sha256
+from telnetlib import NOP
 
-DEBUG = 0       # DEBUG一些基本函数
-FORGE_DEBUG = 1 # DEBUG输出forge的过程
-
-
-# 先设置Bitcoin中的secp256k1参数
+DEBUG = 0 # 非DEBUG模式改成0
+FORGE_DEBUG = 1
+# 先设置Bitcoin中的ECDSA参数
 # These are the parameters for Bitcoinss secp256k1 curve. 
 # y^2 = x^3 + Ax + B
 A = 0
@@ -28,9 +27,12 @@ N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
 # 计算 p + q（Fp的ECC上）
 def elliptic_add(p, q):
-    """计算p+q
+    """Add two distinct points on an elliptic curve.
+       Essentially, uses the slope of the two points in order to find a third point that intersects with the
+       graph. Then, flips this third point across the x-axis. This would be the sum of the points p + q.
+       Everything is mod N, because every value needs to exist within the field N, generated from the base point.
 
-    参数:
+    Args:
         p (integer tuple pair, integer): A point p on the elliptic curve or an integer 0 representing a point at infinity
         q (integer tuple pair, integer): A point q > p on the elliptic curve to be added to p or an integer 0 representing a point at infinity
 
@@ -61,14 +63,17 @@ def elliptic_add(p, q):
         return (r[0], r[1])
 
 if DEBUG:
+    print(elliptic_add(0,0))
+    print(elliptic_add((1,60),0))
     print(elliptic_add(0,(15,7)))
     print(elliptic_add((1,60),(15,7)))
 
 # 计算p+p
 def elliptic_double(p):
-    """计算2p
+    """Add a point on an elliptic curve to itself.
+       The same algorithm as elliptic_addition, except that the slope is the tangent line of p.
 
-    参数:
+    Args:
         p (integer tuple pair): A point p on the elliptic curve
 
     Returns:
@@ -91,16 +96,17 @@ if DEBUG:
 
 # 计算 s*p
 def elliptic_multiply(s, p):
-    """计算s*p
+    """Perform scalar multiplication with a give point p on an elliptic curve. In this implementation will consist
+       of a Python implementation of the double-and-add method.
 
-    参数:
-        s (integer): A scalar value to be multiplied with p
-        p (integer tuple pair): A point on the ellipic curve
+       Args:
+           s (integer): A scalar value to be multiplied with p
+           p (integer tuple pair): A point on the ellipic curve
 
-    Returns:
-        Point r as the resulting point of s*p in the tuple pair (rx, ry)
+       Returns:
+           Point r as the resulting point of s*p in the tuple pair (rx, ry)
 
-    Reference: https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication
+       Reference: https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication
     """
     n = p
     r = 0 # 0 representing a point at infinity
@@ -121,9 +127,14 @@ if DEBUG:
     # Assert that 4P = 3P + 1P
     print(elliptic_multiply(4, G) == elliptic_add(elliptic_multiply(3, G), elliptic_multiply(1, G)))
 
+    print(elliptic_add(elliptic_multiply(1, G), elliptic_multiply(6, G)))
+    print(elliptic_multiply(7, G))
+    print(elliptic_double(elliptic_multiply(5, G)))
+
+
 # 获取私钥，非常简单，直接生成一个随机数
 def generate_private_key():
-    """生成32位16进制的随机数作为私钥
+    """Return a truly random 256-bit integer value (32 bytes in hexadecimal).
 
     Returns:
         A random 32 bit  hexadecimal value.
@@ -132,9 +143,12 @@ def generate_private_key():
 
 # 获取根据私钥公钥，也很简单，vk = sk*G
 def generate_public_key(private_key):
-    """计算sk*G作为vk
+    """Return a public key generated from the private key. This public key is secure because we calculate it
+       by "multiplying" the generator point by a massive integer (private key) in a massive field. The resulting point
+       (which will be compressed and returned as a public key) will be subjected through so many elliptic additions
+       that it will be impossible to guess the multiplicand (which is the private key).
 
-    参数:
+    Args:
         private_key (int): A random 256-bit integer.
 
     Returns:
@@ -146,25 +160,59 @@ def generate_public_key(private_key):
     return elliptic_multiply(private_key, G)
 
 
+def compress_public_key(key):
+    """Returns a compressed public key by taking the x-value of the public key and adding
+       a y-value parity check bits in the beginning.
+
+    Args: key (integer tuple pair): The public key
+
+    Returns:
+        A compressed public key
+    """
+
+    # Parity of y-value
+    if key[1] % 2 == 0:
+        parity = '02'
+    else:
+        parity = '03'
+
+    return parity + hex(key[0])[2:]
+
 def generate_key_pair():
-    """生成公私钥对
+    """Returns a private-public key pair.
 
     Returns: A tuple in the form of (private_key, public_key)
     """
     private_key = generate_private_key()
     public_key = generate_public_key(private_key)
 
+    # The private-public key pair can be checked on https://walletgenerator.net/
+    # (press "skip" -> Wallet Details -> then copy-paste the private key in -> View Details).
+    # By entering this program's generated private key on that website, the public key output should match
+    # the public key of this program - confirming that everything is working as it should. It should be noted that the website uses hex and the
+    # program is using decimal, but I've made hex conversions in the following print statements for convenience.
+
+    if DEBUG:
+        #
+        print("Private Key: " + str(private_key))
+        print("Private Key (hex): ",hex(private_key))
+        print("Public Key: " + str(public_key[0]) + str(public_key[1]))
+        # Bitcoin adds a "04" prefix to indicate that this is an uncompressed public key.
+        print("Public Key (hex): " + "04" + hex(public_key[0]) + hex(public_key[1])) 
+        print("Public Key (hex and compressed): " + compress_public_key(public_key))
+
+    #return (private_key, generate_public_key(private_key)) 
     return (private_key, public_key) 
 
-if DEBUG:
-    (sample_private_key, sample_public_key) = generate_key_pair()
-    print("Private Key : ",sample_private_key)
-    print("Public Key  : ",sample_public_key)
+
+(sample_private_key, sample_public_key) = generate_key_pair()
+
+
 
 
 def double_hash(message):
     """Bitcoin double hashes their message contents with SHA-256. Thus, that is what this function will do.
-    参数:
+    Args:
         message (str): A message to be hashed
     Return:
         A SHA-256 double-hashed message in decimal format, 256 bits long.
@@ -178,8 +226,14 @@ if DEBUG:
 
 
 def sign(private_key, message):
-    """使用私钥对message进行签名
-    参数:
+    """The crux of this project: the Elliptic Curve Digital Signature Algorithm. This is how Bitcoin encrypts
+       its transactions. When someone sends Bitcoins over to another user, they sign the transaction with this algorithm.
+       The signature confirms that the sender of the Bitcoins truly has the private key WITHOUT directly revealing
+       the private key.
+
+       Without a signature, anybody can fake a transaction from one user to another and there would be no way of knowing
+       that the sender of the Bitcoins truly wanted to send those Bitcoins.
+    Args:
         private_key (int): The private key of the sender.
         message (str): A message containing the transaction information.
     Returns:
@@ -212,9 +266,10 @@ if DEBUG:
     print(signature)
 
 def verify(public_key, message, signature,hashed_message=None):
-    """使用公钥对签名进行验证，这里留了hash的接口，方便后面伪造时仅提供hash进行验证
+    """Verify that the signature corresponds with the private key of a transaction. This will be done by attempting to recover the random_point used in the signing function,
+       and seeing if it corresponds with the signature's rx.
 
-       参数:
+       Args:
            public_key (integer tuple pair): A point on the curve that is the message sender's public key.
            message (str): A String representing the sender's message.
            signature (integer tuple pair): A tuple pair (rx, s), where rx is the x-value of the random point used
@@ -245,13 +300,117 @@ if DEBUG:
     print(verify(sample_public_key, message, signature))
 
 
+# Test cases
+def tampered_message_tests():
+    """使用同一个signature去验证原始消息和篡改后的消息，验证verify的正确性
+    """
+    # [真实消息，篡改后的消息]
+    message_pairs = [
+        ["Chau sends Professor Nguyen 2 Bitcoins", "Chau sends Professor Nguyen 500 Bitcoins"],
+        ["Hernan sends Chau 3 Bitcoins", "Hernan sends Chau 50 Bitcoins"],
+        ["Owen sends Felix 50 Bitcoins", "Owen sends Felix 600 Bitcoins"]
+    ]
+
+    for i in range(len(message_pairs)):
+        print('----------------------- Tampered Message Case ' + str(i+1) + '----------------------')
+
+        print()
+
+        (priv_key, pub_key) = generate_key_pair()
+        (message, tampered_message) = message_pairs[i]
+
+        print()
+
+        print("Original Message: " + message)
+        print("Tampered Message: " + tampered_message)
+
+        print()
+
+        signature = sign(priv_key, message)
+        print("Signature: ", end="")
+        print(signature)
+
+        print()
+        
+        print("Original Message Verification: ", end="")
+        print(verify(pub_key, message, signature))
+        print("Tampered Message Verification: ", end="")
+        print(verify(pub_key, tampered_message, signature))
+
+        print()
+
+if DEBUG:
+    tampered_message_tests()
+
+
+def wrong_public_key_test():
+    """验证使用错误的公钥，导致verify失败的情况
+    """
+    print('----------------------- Wrong Public Key Case ----------------------')
+
+    print()
+
+    (priv_key, pub_key) = generate_key_pair()
+    (wrong_priv_key, wrong_pub_key) = generate_key_pair()
+
+    print("Original Public Key: " + "04" + (hex(pub_key[0])[2:] + hex(pub_key[1])[2:]))
+    print("Wrong Public Key: " + "04" + (hex(wrong_pub_key[0])[2:] + hex(wrong_pub_key[1])[2:]))
+
+    message = "Satoshi sends 500 Bitcoins to Chau"
+    print("Message: " + message)
+
+    signature = sign(priv_key, message)
+    print("Signature: ", end="")
+    print(signature)
+
+    print()
+
+    print("With Correct Public Key: ", end="")
+    print(verify(pub_key, message, signature))
+
+    print("With Wrong Public Key: ", end="")
+    print(verify(wrong_pub_key, message, signature))
+if DEBUG:
+    wrong_public_key_test()
+
+
+def wrong_private_key_test():
+    """Tests what happens if a person with a different private key tries to sign the same message.
+    """
+
+    print('----------------------- Wrong Private Key Case ----------------------')
+
+    print()
+
+    (priv_key, pub_key) = generate_key_pair()
+    (wrong_priv_key, wrong_pub_key) = generate_key_pair()
+
+    message = "LeBron sends 5 Bitcoins to Dwight"
+
+    signature = sign(priv_key, message)
+    wrong_signature = sign(wrong_priv_key, message) # Different signer!
+
+    print("Original User's Signature: ", end="")
+    print(signature)
+
+    print("Another User's Signature: ", end="")
+    print(wrong_signature)
+
+    print()
+
+    print("Original Signature Verification: ", end="")
+    print(verify(pub_key, message, signature))
+
+    print("Wrong Signature Verification: ", end="")
+    print(verify(pub_key, message, wrong_signature))
+
+if DEBUG:
+    wrong_private_key_test()
+
+
 def forge_a_signature(pubk):
     """
         尝试伪造一个签名,原理在README中
-        参数：
-            pubk：要伪造的公钥
-        Return：
-            True when the forge success
     """
 
     u = secrets.randbelow(P)
