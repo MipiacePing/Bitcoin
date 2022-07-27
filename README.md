@@ -52,21 +52,15 @@ from hashlib import sha256
 - 从验证中可以看到，我们只需要让$s^{-1}(eG+r_xP) =R $ 即可，构造 $R=uG+vP=(r_x',r'_y)$
 
   只需：
-  $$
-  \begin{cases} 
-  s'^{-1}e\equiv umodn\\
-  s'^{-1}r_x\equiv vmodn
-  
-  \end{cases}
-  $$
+
+  ![image-20220727142731920](picture\image-20220727142731920.png)
+
   解得：
-  $$
-  \begin{cases} 
-  e'\equiv r'uv^{-1}modn\\
-  s'\equiv r'v^{-1}modn
+
+  ![image-20220727142745358](picture\image-20220727142745358.png)
+
   
-  \end{cases}
-  $$
+
   因此我们输出$sig =(r_x',s')$，皆可以通过对P的验证，当然我们只能提供 $e'$，没办法提供原像，所以这个伪造应用范围也有限。
 
 
