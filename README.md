@@ -53,11 +53,11 @@ from hashlib import sha256
 
   只需：
 
-  ![image-20220727142731920](picture\image-20220727142731920.png)
+  ![image-20220727142731920](./picture/image-20220727142731920.png)
 
   解得：
 
-  ![image-20220727142745358](picture\image-20220727142745358.png)
+  ![image-20220727142745358](./picture/image-20220727142745358.png)
 
   
 

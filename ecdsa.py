@@ -1,11 +1,12 @@
 import math
 import secrets
 from hashlib import sha256
+from telnetlib import NOP
 
-DEBUG = 1 # 非DEBUG模式改成0
+DEBUG = 0 # 非DEBUG模式改成0
 
 # 先设置Bitcoin中的ECDSA参数
-# These are the parameters for Bitcoin's secp256k1 curve. 
+# These are the parameters for Bitcoinss secp256k1 curve. 
 # y^2 = x^3 + Ax + B
 A = 0
 B = 7
@@ -89,9 +90,9 @@ def elliptic_double(p):
     r.append((slope*(p[0] - r[0]) - p[1])%P)
 
     return (r[0], r[1])
-
-print(elliptic_double((1,5)))
-print(elliptic_double(G))
+if DEBUG:
+    print("elliptic_double((1,5))= " ,elliptic_double((1,5)))
+    print("elliptic_double(G)= ",elliptic_double(G))
 
 # 计算 s*p
 def elliptic_multiply(s, p):
@@ -348,8 +349,8 @@ def wrong_public_key_test():
 
     print()
 
-    (priv_key, pub_key) = generate_key_pair(False)
-    (wrong_priv_key, wrong_pub_key) = generate_key_pair(False)
+    (priv_key, pub_key) = generate_key_pair()
+    (wrong_priv_key, wrong_pub_key) = generate_key_pair()
 
     print("Original Public Key: " + "04" + (hex(pub_key[0])[2:] + hex(pub_key[1])[2:]))
     print("Wrong Public Key: " + "04" + (hex(wrong_pub_key[0])[2:] + hex(wrong_pub_key[1])[2:]))
@@ -368,8 +369,8 @@ def wrong_public_key_test():
 
     print("With Wrong Public Key: ", end="")
     print(verify(wrong_pub_key, message, signature))
-
-wrong_public_key_test()
+if DEBUG:
+    wrong_public_key_test()
 
 
 def wrong_private_key_test():
@@ -380,8 +381,8 @@ def wrong_private_key_test():
 
     print()
 
-    (priv_key, pub_key) = generate_key_pair(False)
-    (wrong_priv_key, wrong_pub_key) = generate_key_pair(False)
+    (priv_key, pub_key) = generate_key_pair()
+    (wrong_priv_key, wrong_pub_key) = generate_key_pair()
 
     message = "LeBron sends 5 Bitcoins to Dwight"
 
@@ -401,6 +402,7 @@ def wrong_private_key_test():
 
     print("Wrong Signature Verification: ", end="")
     print(verify(pub_key, message, wrong_signature))
+
 if DEBUG:
     wrong_private_key_test()
 
@@ -414,3 +416,6 @@ def forge_a_signature():
             r'=x'mod N
             r' == r ?
     """
+    NOP
+
+print(hex(sample_public_key[0]))
