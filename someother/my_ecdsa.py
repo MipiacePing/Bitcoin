@@ -75,7 +75,7 @@ class EllipticCurve:
         # Check for membership of curve parameters in the field.
         if self.a not in self.field or self.b not in self.field:
             raise ValueError
-
+# 大质数：2^256 − 2^32 − 2^9 − 2^8 − 2^7 − 2^6 − 2^4 − 1
 P: int = (
     0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 )
