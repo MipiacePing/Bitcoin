@@ -19,6 +19,10 @@ from hashlib import sha256
 # 一般都有
 ```
 
+**ESCDA代码引用：**
+
+https://github.com/chautrn/ecdsa_encryption
+
 **运行方式：**
 
 - `$: python3 ecdsa.py`  
